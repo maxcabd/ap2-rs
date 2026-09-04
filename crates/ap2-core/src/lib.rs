@@ -4,6 +4,12 @@
 //! Types here are generated/derived from the pinned canonical AP2 schemas in
 //! `spec/schemas/`, recorded in `spec/upstream.json`.
 
+pub mod checkout_mandate;
+pub mod mandate_type;
+
+pub use checkout_mandate::UnverifiedCheckoutMandate;
+pub use mandate_type::MandateType;
+
 /// The AP2 protocol specification version this crate targets.
 pub const AP2_SPEC_VERSION: &str = "0.2";
 
