@@ -1,0 +1,25 @@
+{
+  "repository": "https://github.com/google-agentic-commerce/AP2",
+  "commit": "e1ea56db72a6385bce3e5c1112b3a56ce60acb43",
+  "commit_date": "2026-04-29T16:51:41Z",
+  "protocol": "AP2",
+  "spec_version": "0.2",
+  "pinned_at": "2026-09-03",
+  "schema_root": "code/sdk/schemas/ap2",
+  "schema_paths": [
+    "checkout_mandate.json",
+    "checkout_receipt.json",
+    "open_checkout_mandate.json",
+    "open_payment_mandate.json",
+    "payment_mandate.json",
+    "payment_receipt.json",
+    "types/amount.json",
+    "types/item.json",
+    "types/jwk.json",
+    "types/merchant.json",
+    "types/payment_instrument.json",
+    "types/pisp.json",
+    "types/receipt_status.json"
+  ],
+  "notes": "Vendored via `cargo xtask sync-spec`. Do not hand-edit spec/schemas/ - regenerate from this pin instead. Never silently update `commit` without reviewing the diff (see `cargo xtask check-drift`)."
+}
