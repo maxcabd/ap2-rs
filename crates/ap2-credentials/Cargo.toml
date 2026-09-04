@@ -13,3 +13,8 @@ ap2-core = { path = "../ap2-core" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+
+# ADR 0001: JWT/JWS via jsonwebtoken (rust_crypto backend -- pure Rust, no
+# cmake/clang build dependency), SD-JWT via sd-jwt-payload.
+jsonwebtoken = { version = "11", default-features = false, features = ["rust_crypto"] }
+sd-jwt-payload = "0.5"
