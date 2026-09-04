@@ -1,0 +1,16 @@
+[package]
+name = "ap2-core"
+description = "Pure protocol-domain types for the Agentic Payment Protocol (AP2), generated from pinned canonical schemas."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints.clippy]
+float_arithmetic = "deny"

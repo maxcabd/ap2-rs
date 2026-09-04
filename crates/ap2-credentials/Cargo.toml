@@ -1,0 +1,14 @@
+[package]
+name = "ap2-credentials"
+description = "AP2 credential mechanics: JWT/JWS parsing, SD-JWT selective disclosure, and signature verification."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ap2-core = { path = "../ap2-core" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

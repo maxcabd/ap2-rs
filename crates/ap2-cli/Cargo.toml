@@ -1,0 +1,21 @@
+[package]
+name = "ap2-cli"
+description = "Command-line inspector and verifier for AP2 artifacts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "ap2"
+path = "src/main.rs"
+
+[dependencies]
+ap2-core = { path = "../ap2-core" }
+ap2-credentials = { path = "../ap2-credentials" }
+ap2-verify = { path = "../ap2-verify" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+clap = { version = "4", features = ["derive"] }
