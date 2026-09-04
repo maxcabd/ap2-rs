@@ -5,6 +5,7 @@ members = [
     "crates/ap2-credentials",
     "crates/ap2-verify",
     "crates/ap2-cli",
+    "xtask",
 ]
 
 [workspace.package]

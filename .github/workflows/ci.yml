@@ -42,3 +42,11 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v2
       - run: cargo install cargo-audit --locked
       - run: cargo audit
+
+  upstream-drift:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo run -p xtask -- check-drift
