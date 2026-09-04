@@ -32,7 +32,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.85"
-      - run: cargo test --workspace
+      # xtask is dev tooling, not a shipped crate, and pulls in a dependency
+      # chain (ureq -> url -> idna -> icu_*) with a faster-moving MSRV.
+      - run: cargo test --workspace --exclude xtask
 
   security:
     runs-on: ubuntu-latest

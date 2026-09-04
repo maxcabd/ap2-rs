@@ -3,7 +3,6 @@ name = "xtask"
 description = "Developer automation tasks for ap2-rs (e.g. upstream spec synchronization)."
 version.workspace = true
 edition.workspace = true
-rust-version.workspace = true
 license.workspace = true
 publish = false
 
