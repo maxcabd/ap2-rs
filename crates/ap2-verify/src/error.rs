@@ -13,6 +13,11 @@ pub enum VerifyError {
     #[error("failed to parse disclosed mandate claims: {0}")]
     MalformedClaims(#[from] serde_json::Error),
 
+    /// Real AP2 issuers wrap mandate fields as `delegate_payload: [{...}]`
+    /// (draft-gco-oauth-delegate-sd-jwt); this is a malformed one.
+    #[error("delegate_payload must be a one-item array of objects")]
+    InvalidDelegatePayload,
+
     #[error("expected a Checkout Mandate (mandate.checkout.1), found {0:?}")]
     WrongMandateType(MandateType),
 
@@ -45,7 +50,9 @@ impl VerifyError {
         match self {
             VerifyError::UnsupportedMandateType(_) => 3,
 
-            VerifyError::WrongMandateType(_) | VerifyError::MalformedClaims(_) => 2,
+            VerifyError::WrongMandateType(_)
+            | VerifyError::MalformedClaims(_)
+            | VerifyError::InvalidDelegatePayload => 2,
 
             VerifyError::Credential(CredentialError::MalformedJws(_))
             | VerifyError::Credential(CredentialError::MalformedSdJwt(_))

@@ -6,6 +6,23 @@ use serde_json::Value;
 
 use crate::error::VerifyError;
 
+/// Real issuers wrap mandate fields as `delegate_payload: [{...}]`; unwrap
+/// it if present, else treat the claims as flat (schema-literal shape).
+fn unwrap_delegate_payload(
+    mut claims: serde_json::Map<String, Value>,
+) -> Result<serde_json::Map<String, Value>, VerifyError> {
+    let Some(payload) = claims.remove("delegate_payload") else {
+        return Ok(claims);
+    };
+    match payload {
+        Value::Array(mut items) if items.len() == 1 => match items.pop() {
+            Some(Value::Object(obj)) => Ok(obj),
+            _ => Err(VerifyError::InvalidDelegatePayload),
+        },
+        _ => Err(VerifyError::InvalidDelegatePayload),
+    }
+}
+
 /// A Checkout Mandate whose Issuer signature, hash binding to a Checkout
 /// JWT, and (if present) expiry/freshness have all been verified.
 #[derive(Debug, Clone)]
@@ -25,9 +42,9 @@ pub fn verify_checkout_mandate(
     leeway_seconds: i64,
 ) -> Result<VerifiedCheckoutMandate, VerifyError> {
     let verified_mandate = verify_sd_jwt(mandate_presentation, user_key)?;
+    let claims = unwrap_delegate_payload(verified_mandate.claims)?;
 
-    let mandate: UnverifiedCheckoutMandate =
-        serde_json::from_value(Value::Object(verified_mandate.claims))?;
+    let mandate: UnverifiedCheckoutMandate = serde_json::from_value(Value::Object(claims))?;
 
     match &mandate.vct {
         MandateType::CheckoutV1 => {}
@@ -381,5 +398,63 @@ mod tests {
             VerifyError::Credential(ap2_credentials::CredentialError::SignatureInvalid(_))
         ));
         assert_eq!(err.exit_code(), 1);
+    }
+
+    // Real AP2 issuers (the upstream Python reference SDK) wrap mandate
+    // fields as delegate_payload: [{...}], not flat at the top level.
+    #[test]
+    fn verifies_a_mandate_wrapped_in_delegate_payload() {
+        let f = happy_path_fixture();
+
+        let wrapped_presentation = present(
+            &json!({
+                "delegate_payload": [{
+                    "vct": "mandate.checkout.1",
+                    "checkout_hash": sha256_base64url(&f.checkout_jwt),
+                }],
+            }),
+            &f.user.encoding_key,
+        );
+
+        let verified = verify_checkout_mandate(
+            &wrapped_presentation,
+            &f.checkout_jwt,
+            &f.user.jwk,
+            &f.merchant.jwk,
+            NOW,
+            LEEWAY,
+        )
+        .expect("delegate_payload-wrapped mandate must verify");
+
+        assert_eq!(verified.checkout_hash, sha256_base64url(&f.checkout_jwt));
+    }
+
+    #[test]
+    fn rejects_a_malformed_delegate_payload() {
+        let f = happy_path_fixture();
+
+        // Two items instead of exactly one.
+        let malformed_presentation = present(
+            &json!({
+                "delegate_payload": [
+                    {"vct": "mandate.checkout.1", "checkout_hash": sha256_base64url(&f.checkout_jwt)},
+                    {"vct": "mandate.checkout.1", "checkout_hash": sha256_base64url(&f.checkout_jwt)},
+                ],
+            }),
+            &f.user.encoding_key,
+        );
+
+        let err = verify_checkout_mandate(
+            &malformed_presentation,
+            &f.checkout_jwt,
+            &f.user.jwk,
+            &f.merchant.jwk,
+            NOW,
+            LEEWAY,
+        )
+        .unwrap_err();
+
+        assert!(matches!(err, VerifyError::InvalidDelegatePayload));
+        assert_eq!(err.exit_code(), 2);
     }
 }
