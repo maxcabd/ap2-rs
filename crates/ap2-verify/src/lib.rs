@@ -6,9 +6,13 @@
 
 mod chain;
 mod checkout;
+mod checkout_chain;
+mod constraints;
 mod delegate;
 mod error;
 
 pub use chain::verify_chain;
 pub use checkout::{verify_checkout_mandate, VerifiedCheckoutMandate};
+pub use checkout_chain::CheckoutMandateChain;
+pub use constraints::{check_checkout_constraints, CheckoutForConstraints, CheckoutLineItem};
 pub use error::VerifyError;
