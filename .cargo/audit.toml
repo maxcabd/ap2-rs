@@ -1,0 +1,6 @@
+[advisories]
+ignore = [
+    # See deny.toml for the rationale: unused RSA support pulled in
+    # transitively by jsonwebtoken's `rust_crypto` feature.
+    "RUSTSEC-2023-0071",
+]

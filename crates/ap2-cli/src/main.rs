@@ -85,8 +85,28 @@ enum Command {
         #[arg(long)]
         checkout: String,
     },
+    /// Verify a `~~`-joined dSD-JWT delegation chain (e.g. an Open Checkout
+    /// Mandate delegating to a Checkout Mandate).
+    VerifyChain {
+        chain: String,
+        /// Path to the root hop's verifying JWK.
+        #[arg(long)]
+        root_key: String,
+        #[arg(long)]
+        aud: String,
+        #[arg(long)]
+        nonce: String,
+    },
     /// Inspect a Checkout or Payment Receipt.
     InspectReceipt { receipt: String },
+}
+
+/// Current time as a Unix timestamp, for exp/iat checks.
+fn now_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock before 1970")
+        .as_secs() as i64
 }
 
 fn run_verify_checkout(
@@ -111,10 +131,7 @@ fn run_verify_checkout(
         }
     };
 
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("system clock before 1970")
-        .as_secs() as i64;
+    let now = now_unix();
 
     match ap2_verify::verify_checkout_mandate(
         &mandate_str,
@@ -142,6 +159,41 @@ fn run_verify_checkout(
     }
 }
 
+fn run_verify_chain(chain_path: &str, root_key_path: &str, aud: &str, nonce: &str) -> ExitCode {
+    let inputs = (|| -> Result<_, CliInputError> {
+        Ok((read_trimmed(chain_path)?, read_jwk(root_key_path)?))
+    })();
+    let (chain, root_key) = match inputs {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(EXIT_USAGE);
+        }
+    };
+
+    match ap2_verify::verify_chain(
+        &chain,
+        &root_key,
+        now_unix(),
+        DEFAULT_LEEWAY_SECONDS,
+        aud,
+        nonce,
+    ) {
+        Ok(payloads) => {
+            println!("chain: OK ({} effective payload(s))", payloads.len());
+            for (i, payload) in payloads.into_iter().enumerate() {
+                let value = serde_json::Value::Object(payload);
+                println!("[{i}] {}", serde_json::to_string_pretty(&value).unwrap());
+            }
+            ExitCode::from(EXIT_VALID)
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(e.exit_code())
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -158,6 +210,12 @@ fn main() -> ExitCode {
             user_key,
             merchant_key,
         } => run_verify_checkout(&mandate, &checkout, &user_key, &merchant_key),
+        Command::VerifyChain {
+            chain,
+            root_key,
+            aud,
+            nonce,
+        } => run_verify_chain(&chain, &root_key, &aud, &nonce),
         _ => {
             eprintln!("not yet implemented");
             ExitCode::from(EXIT_USAGE)

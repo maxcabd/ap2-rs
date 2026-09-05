@@ -4,6 +4,15 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+    # RUSTSEC-2023-0071: RSA timing sidechannel, in `rsa` (pulled in
+    # transitively by jsonwebtoken's `rust_crypto` feature, which bundles
+    # RSA support alongside the EC support we actually use). We never
+    # construct or exercise an RSA key or algorithm anywhere in this
+    # codebase -- ALLOWED_ALGORITHMS is hardcoded to ES256 only, matching
+    # the pinned AP2 JWK schema's `kty: EC` constraint.
+    "RUSTSEC-2023-0071",
+]
 
 [licenses]
 version = 2

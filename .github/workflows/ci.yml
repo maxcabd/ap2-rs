@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.85"
+          toolchain: "1.88"
       # xtask is dev tooling, not a shipped crate, and pulls in a dependency
       # chain (ureq -> url -> idna -> icu_*) with a faster-moving MSRV.
       - run: cargo test --workspace --exclude xtask
