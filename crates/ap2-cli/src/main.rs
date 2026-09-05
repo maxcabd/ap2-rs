@@ -85,6 +85,12 @@ enum Command {
         mandate: String,
         #[arg(long)]
         checkout: String,
+        /// Path to the User/Agent's JWK.
+        #[arg(long)]
+        user_key: String,
+        /// Path to the Merchant's JWK.
+        #[arg(long)]
+        merchant_key: String,
     },
     /// Verify a `~~`-joined dSD-JWT delegation chain (e.g. an Open Checkout
     /// Mandate delegating to a Checkout Mandate).
@@ -112,6 +118,29 @@ enum Command {
         /// against and bind via checkout_hash.
         #[arg(long)]
         checkout: String,
+    },
+    /// Verify an Open Payment Mandate + Payment Mandate delegation chain,
+    /// including payment constraint policy (amount range, budget, ...).
+    VerifyPaymentChain {
+        chain: String,
+        #[arg(long)]
+        root_key: String,
+        #[arg(long)]
+        aud: String,
+        #[arg(long)]
+        nonce: String,
+        /// Digest of the associated Open Checkout Mandate, for
+        /// PaymentReference constraints.
+        #[arg(long)]
+        open_checkout_hash: Option<String>,
+        /// Cumulative amount already spent under this mandate (minor
+        /// units), for Budget constraints.
+        #[arg(long)]
+        total_amount: Option<i64>,
+        /// Number of times this mandate has already been used, for
+        /// AgentRecurrence constraints.
+        #[arg(long)]
+        total_uses: Option<u32>,
     },
     /// Inspect a Checkout or Payment Receipt.
     InspectReceipt { receipt: String },
@@ -269,6 +298,120 @@ fn run_verify_checkout_chain(
     }
 }
 
+fn run_verify_payment(
+    mandate: &str,
+    checkout: &str,
+    user_key: &str,
+    merchant_key: &str,
+) -> ExitCode {
+    let inputs = (|| -> Result<_, CliInputError> {
+        Ok((
+            read_trimmed(mandate)?,
+            read_trimmed(checkout)?,
+            read_jwk(user_key)?,
+            read_jwk(merchant_key)?,
+        ))
+    })();
+    let (mandate_str, checkout_str, user_jwk, merchant_jwk) = match inputs {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(EXIT_USAGE);
+        }
+    };
+
+    match ap2_verify::verify_payment_mandate(
+        &mandate_str,
+        &checkout_str,
+        &user_jwk,
+        &merchant_jwk,
+        now_unix(),
+        DEFAULT_LEEWAY_SECONDS,
+    ) {
+        Ok(verified) => {
+            let payee = &verified.payment_mandate.payee.name;
+            let amount = &verified.payment_mandate.payment_amount;
+            println!("payment mandate: OK");
+            println!("transaction_id: {}", verified.transaction_id);
+            println!("iat: {:?}", verified.iat);
+            println!("exp: {:?}", verified.exp);
+            println!("payee: {payee}");
+            println!("payment_amount: {} {}", amount.amount, amount.currency);
+            ExitCode::from(EXIT_VALID)
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(e.exit_code())
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_verify_payment_chain(
+    chain_path: &str,
+    root_key_path: &str,
+    aud: &str,
+    nonce: &str,
+    open_checkout_hash: Option<&str>,
+    total_amount: Option<i64>,
+    total_uses: Option<u32>,
+) -> ExitCode {
+    let inputs = (|| -> Result<_, CliInputError> {
+        Ok((read_trimmed(chain_path)?, read_jwk(root_key_path)?))
+    })();
+    let (chain, root_key) = match inputs {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(EXIT_USAGE);
+        }
+    };
+
+    let payloads = match ap2_verify::verify_chain(
+        &chain,
+        &root_key,
+        now_unix(),
+        DEFAULT_LEEWAY_SECONDS,
+        aud,
+        nonce,
+    ) {
+        Ok(payloads) => payloads,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(e.exit_code());
+        }
+    };
+
+    let mandate_chain = match ap2_verify::PaymentMandateChain::parse(payloads) {
+        Ok(mandate_chain) => mandate_chain,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(e.exit_code());
+        }
+    };
+
+    // Only built when the caller actually supplied usage data -- absent
+    // context correctly surfaces as "missing context" violations for any
+    // recurrence/budget constraint that needs it.
+    let context =
+        (total_amount.is_some() || total_uses.is_some()).then(|| ap2_verify::MandateContext {
+            total_amount: total_amount.unwrap_or(0),
+            total_uses: total_uses.unwrap_or(0),
+        });
+
+    let violations = mandate_chain.verify(open_checkout_hash, context.as_ref());
+
+    if violations.is_empty() {
+        println!("payment chain: OK");
+        ExitCode::from(EXIT_VALID)
+    } else {
+        for violation in &violations {
+            eprintln!("{violation}");
+        }
+        ExitCode::from(EXIT_VERIFICATION_FAILED)
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -298,6 +441,29 @@ fn main() -> ExitCode {
             nonce,
             checkout,
         } => run_verify_checkout_chain(&chain, &root_key, &aud, &nonce, &checkout),
+        Command::VerifyPayment {
+            mandate,
+            checkout,
+            user_key,
+            merchant_key,
+        } => run_verify_payment(&mandate, &checkout, &user_key, &merchant_key),
+        Command::VerifyPaymentChain {
+            chain,
+            root_key,
+            aud,
+            nonce,
+            open_checkout_hash,
+            total_amount,
+            total_uses,
+        } => run_verify_payment_chain(
+            &chain,
+            &root_key,
+            &aud,
+            &nonce,
+            open_checkout_hash.as_deref(),
+            total_amount,
+            total_uses,
+        ),
         _ => {
             eprintln!("not yet implemented");
             ExitCode::from(EXIT_USAGE)
