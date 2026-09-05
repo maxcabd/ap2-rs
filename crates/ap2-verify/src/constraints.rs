@@ -27,7 +27,7 @@ pub struct CheckoutItemRef {
 
 /// Matches merchants by `id` (preferred), else by non-empty `name` +
 /// `website` both matching.
-fn merchant_matches(candidate: &Merchant, target: &Merchant) -> bool {
+pub(crate) fn merchant_matches(candidate: &Merchant, target: &Merchant) -> bool {
     if !candidate.id.is_empty() && !target.id.is_empty() {
         return candidate.id == target.id;
     }

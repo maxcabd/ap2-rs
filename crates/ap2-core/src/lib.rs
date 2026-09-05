@@ -7,6 +7,8 @@
 pub mod checkout_mandate;
 pub mod mandate_type;
 pub mod open_checkout_mandate;
+pub mod open_payment_mandate;
+pub mod payment_mandate;
 pub mod types;
 
 pub use checkout_mandate::UnverifiedCheckoutMandate;
@@ -14,7 +16,9 @@ pub use mandate_type::MandateType;
 pub use open_checkout_mandate::{
     AcceptableItem, Constraint, LineItemRequirement, OpenCheckoutMandate,
 };
-pub use types::Merchant;
+pub use open_payment_mandate::{Constraint as PaymentConstraint, Frequency, OpenPaymentMandate};
+pub use payment_mandate::PaymentMandate;
+pub use types::{Amount, Merchant, PaymentInstrument, Pisp};
 
 /// The AP2 protocol specification version this crate targets.
 pub const AP2_SPEC_VERSION: &str = "0.2";

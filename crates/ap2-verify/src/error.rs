@@ -42,6 +42,9 @@ pub enum VerifyError {
     #[error("checkout_hash does not match the supplied Checkout JWT")]
     HashMismatch,
 
+    #[error("transaction_id does not match the supplied Checkout JWT")]
+    TransactionIdMismatch,
+
     #[error("mandate expired at {exp}, now is {now} (leeway {leeway_seconds}s)")]
     Expired {
         exp: i64,
@@ -79,6 +82,7 @@ impl VerifyError {
             | VerifyError::Credential(CredentialError::DisallowedAlgorithm(_))
             | VerifyError::Credential(CredentialError::KeyBinding(_))
             | VerifyError::HashMismatch
+            | VerifyError::TransactionIdMismatch
             | VerifyError::ChainBindingMismatch
             | VerifyError::ChainAudienceMismatch
             | VerifyError::Expired { .. }

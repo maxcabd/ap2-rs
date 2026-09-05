@@ -9,7 +9,7 @@ use crate::error::VerifyError;
 
 /// Unwraps `delegate_payload: [{...}]` if present, else treats claims as
 /// flat (schema-literal shape).
-fn unwrap_delegate_payload(
+pub(crate) fn unwrap_delegate_payload(
     claims: serde_json::Map<String, Value>,
 ) -> Result<serde_json::Map<String, Value>, VerifyError> {
     let mut items = resolve_delegate_items(&claims)?;
