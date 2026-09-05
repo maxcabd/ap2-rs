@@ -5,20 +5,24 @@
 //! `spec/schemas/`, recorded in `spec/upstream.json`.
 
 pub mod checkout_mandate;
+pub mod checkout_receipt;
 pub mod mandate_type;
 pub mod open_checkout_mandate;
 pub mod open_payment_mandate;
 pub mod payment_mandate;
+pub mod payment_receipt;
 pub mod types;
 
 pub use checkout_mandate::UnverifiedCheckoutMandate;
+pub use checkout_receipt::{CheckoutOutcome, CheckoutReceipt};
 pub use mandate_type::MandateType;
 pub use open_checkout_mandate::{
     AcceptableItem, Constraint, LineItemRequirement, OpenCheckoutMandate,
 };
 pub use open_payment_mandate::{Constraint as PaymentConstraint, Frequency, OpenPaymentMandate};
 pub use payment_mandate::PaymentMandate;
-pub use types::{Amount, Merchant, PaymentInstrument, Pisp};
+pub use payment_receipt::{PaymentOutcome, PaymentReceipt};
+pub use types::{Amount, Merchant, PaymentInstrument, Pisp, ReceiptStatus};
 
 /// The AP2 protocol specification version this crate targets.
 pub const AP2_SPEC_VERSION: &str = "0.2";

@@ -13,6 +13,7 @@ mod error;
 mod payment;
 mod payment_chain;
 mod payment_constraints;
+mod receipt;
 
 pub use chain::verify_chain;
 pub use checkout::{verify_checkout_mandate, VerifiedCheckoutMandate};
@@ -22,3 +23,4 @@ pub use error::VerifyError;
 pub use payment::{verify_payment_mandate, VerifiedPaymentMandate};
 pub use payment_chain::PaymentMandateChain;
 pub use payment_constraints::{check_payment_constraints, MandateContext};
+pub use receipt::{verify_checkout_receipt, verify_payment_receipt};

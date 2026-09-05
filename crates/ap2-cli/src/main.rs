@@ -142,6 +142,23 @@ enum Command {
         #[arg(long)]
         total_uses: Option<u32>,
     },
+    /// Verify a Checkout Receipt's signature (a plain JWT, not an SD-JWT).
+    VerifyCheckoutReceipt {
+        receipt: String,
+        #[arg(long)]
+        issuer_key: String,
+        /// Expected `reference` (hash of the closed mandate it binds to).
+        #[arg(long)]
+        reference: Option<String>,
+    },
+    /// Verify a Payment Receipt's signature (a plain JWT, not an SD-JWT).
+    VerifyPaymentReceipt {
+        receipt: String,
+        #[arg(long)]
+        issuer_key: String,
+        #[arg(long)]
+        reference: Option<String>,
+    },
     /// Inspect a Checkout or Payment Receipt.
     InspectReceipt { receipt: String },
 }
@@ -412,6 +429,69 @@ fn run_verify_payment_chain(
     }
 }
 
+fn run_verify_checkout_receipt(
+    receipt_path: &str,
+    issuer_key_path: &str,
+    reference: Option<&str>,
+) -> ExitCode {
+    let inputs = (|| -> Result<_, CliInputError> {
+        Ok((read_trimmed(receipt_path)?, read_jwk(issuer_key_path)?))
+    })();
+    let (receipt_jwt, issuer_key) = match inputs {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(EXIT_USAGE);
+        }
+    };
+
+    match ap2_verify::verify_checkout_receipt(&receipt_jwt, &issuer_key, reference) {
+        Ok(receipt) => {
+            println!("checkout receipt: OK");
+            println!("status: {:?}", receipt.status());
+            println!("iss: {}", receipt.iss);
+            println!("reference: {}", receipt.reference);
+            ExitCode::from(EXIT_VALID)
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(e.exit_code())
+        }
+    }
+}
+
+fn run_verify_payment_receipt(
+    receipt_path: &str,
+    issuer_key_path: &str,
+    reference: Option<&str>,
+) -> ExitCode {
+    let inputs = (|| -> Result<_, CliInputError> {
+        Ok((read_trimmed(receipt_path)?, read_jwk(issuer_key_path)?))
+    })();
+    let (receipt_jwt, issuer_key) = match inputs {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(EXIT_USAGE);
+        }
+    };
+
+    match ap2_verify::verify_payment_receipt(&receipt_jwt, &issuer_key, reference) {
+        Ok(receipt) => {
+            println!("payment receipt: OK");
+            println!("status: {:?}", receipt.status());
+            println!("iss: {}", receipt.iss);
+            println!("reference: {}", receipt.reference);
+            println!("payment_id: {}", receipt.payment_id);
+            ExitCode::from(EXIT_VALID)
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::from(e.exit_code())
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -464,6 +544,16 @@ fn main() -> ExitCode {
             total_amount,
             total_uses,
         ),
+        Command::VerifyCheckoutReceipt {
+            receipt,
+            issuer_key,
+            reference,
+        } => run_verify_checkout_receipt(&receipt, &issuer_key, reference.as_deref()),
+        Command::VerifyPaymentReceipt {
+            receipt,
+            issuer_key,
+            reference,
+        } => run_verify_payment_receipt(&receipt, &issuer_key, reference.as_deref()),
         _ => {
             eprintln!("not yet implemented");
             ExitCode::from(EXIT_USAGE)

@@ -404,6 +404,48 @@ mod tests {
         assert!(matches!(err, VerifyError::MalformedChainHop(_)));
     }
 
+    /// A correctly-formed 3-hop chain: root -> intermediate (has cnf,
+    /// delegating onward) -> terminal. Mirrors the real-world
+    /// DPC -> wallet -> agent delegation pattern (three tiers, not just
+    /// the 2-hop Open+Closed case every other chain test here uses).
+    #[test]
+    fn verifies_a_well_formed_three_hop_chain() {
+        let root = generate_es256_keypair();
+        let mid = generate_es256_keypair();
+        let leaf = generate_es256_keypair();
+
+        let root_claims = json!({"vct": "dpc.credential.1", "cnf": {"jwk": mid.jwk}});
+        let root_jwt = sign_typed(&root_claims, &root.encoding_key, None);
+        let root_sd_jwt = format!("{root_jwt}~");
+
+        let mid_claims = json!({
+            "iat": NOW,
+            "sd_hash": sha256_base64url(&root_sd_jwt),
+            "delegate_payload": [{"vct": "wallet.delegation.1", "cnf": {"jwk": leaf.jwk}}],
+        });
+        let mid_jwt = sign_typed(&mid_claims, &mid.encoding_key, Some("kb+sd-jwt+kb"));
+        let mid_sd_jwt = format!("{mid_jwt}~");
+
+        let leaf_claims = json!({
+            "iat": NOW,
+            "aud": "merchant",
+            "nonce": "merchant-nonce",
+            "sd_hash": sha256_base64url(&mid_sd_jwt),
+            "delegate_payload": [{"vct": "mandate.checkout.1", "checkout_hash": "hash"}],
+        });
+        let leaf_jwt = sign_typed(&leaf_claims, &leaf.encoding_key, Some("kb+sd-jwt"));
+
+        let chain = format!("{root_jwt}~~{mid_jwt}~~{leaf_jwt}~");
+
+        let payloads = verify_chain(&chain, &root.jwk, NOW, LEEWAY, "merchant", "merchant-nonce")
+            .expect("well-formed 3-hop chain must verify");
+
+        assert_eq!(payloads.len(), 3);
+        assert_eq!(payloads[0]["vct"], json!("dpc.credential.1"));
+        assert_eq!(payloads[1]["vct"], json!("wallet.delegation.1"));
+        assert_eq!(payloads[2]["vct"], json!("mandate.checkout.1"));
+    }
+
     #[test]
     fn rejects_an_expired_hop() {
         let c = two_hop_chain(json!({"exp": NOW - 3600}));
