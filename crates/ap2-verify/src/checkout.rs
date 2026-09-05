@@ -4,21 +4,18 @@ use ap2_credentials::{
 };
 use serde_json::Value;
 
+use crate::delegate::resolve_delegate_items;
 use crate::error::VerifyError;
 
-/// Real issuers wrap mandate fields as `delegate_payload: [{...}]`; unwrap
-/// it if present, else treat the claims as flat (schema-literal shape).
+/// Unwraps `delegate_payload: [{...}]` if present, else treats claims as
+/// flat (schema-literal shape).
 fn unwrap_delegate_payload(
-    mut claims: serde_json::Map<String, Value>,
+    claims: serde_json::Map<String, Value>,
 ) -> Result<serde_json::Map<String, Value>, VerifyError> {
-    let Some(payload) = claims.remove("delegate_payload") else {
-        return Ok(claims);
-    };
-    match payload {
-        Value::Array(mut items) if items.len() == 1 => match items.pop() {
-            Some(Value::Object(obj)) => Ok(obj),
-            _ => Err(VerifyError::InvalidDelegatePayload),
-        },
+    let mut items = resolve_delegate_items(&claims)?;
+    match items.len() {
+        0 => Ok(claims),
+        1 => Ok(items.pop().unwrap()),
         _ => Err(VerifyError::InvalidDelegatePayload),
     }
 }

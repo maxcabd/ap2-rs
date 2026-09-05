@@ -18,6 +18,21 @@ pub enum VerifyError {
     #[error("delegate_payload must be a one-item array of objects")]
     InvalidDelegatePayload,
 
+    /// A `~~`-joined delegation chain hop that fails a structural check
+    /// (bad/missing `typ`, missing `iat`, missing or wrong `cnf` for its
+    /// position, more than one delegate item where exactly one is required).
+    #[error("malformed delegation chain hop: {0}")]
+    MalformedChainHop(&'static str),
+
+    #[error("chain hop's confirmation key (cnf.jwk) is missing or invalid")]
+    MissingConfirmationKey,
+
+    #[error("chain hop binding (sd_hash/issuer_jwt_hash) does not match the preceding hop")]
+    ChainBindingMismatch,
+
+    #[error("chain terminal hop's aud/nonce does not match the expected values")]
+    ChainAudienceMismatch,
+
     #[error("expected a Checkout Mandate (mandate.checkout.1), found {0:?}")]
     WrongMandateType(MandateType),
 
@@ -52,7 +67,9 @@ impl VerifyError {
 
             VerifyError::WrongMandateType(_)
             | VerifyError::MalformedClaims(_)
-            | VerifyError::InvalidDelegatePayload => 2,
+            | VerifyError::InvalidDelegatePayload
+            | VerifyError::MalformedChainHop(_)
+            | VerifyError::MissingConfirmationKey => 2,
 
             VerifyError::Credential(CredentialError::MalformedJws(_))
             | VerifyError::Credential(CredentialError::MalformedSdJwt(_))
@@ -62,6 +79,8 @@ impl VerifyError {
             | VerifyError::Credential(CredentialError::DisallowedAlgorithm(_))
             | VerifyError::Credential(CredentialError::KeyBinding(_))
             | VerifyError::HashMismatch
+            | VerifyError::ChainBindingMismatch
+            | VerifyError::ChainAudienceMismatch
             | VerifyError::Expired { .. }
             | VerifyError::NotYetValid { .. } => 1,
         }
