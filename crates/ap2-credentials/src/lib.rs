@@ -11,7 +11,9 @@ mod sd_jwt;
 
 pub use error::CredentialError;
 pub use jws::{verify_compact_jws, VerifiedJws, ALLOWED_ALGORITHMS};
-pub use sd_jwt::{verify_key_binding, verify_sd_jwt, VerifiedKeyBinding, VerifiedSdJwt};
+pub use sd_jwt::{
+    sha256_base64url, verify_key_binding, verify_sd_jwt, VerifiedKeyBinding, VerifiedSdJwt,
+};
 
 pub use jsonwebtoken::jwk::Jwk;
 pub use jsonwebtoken::Algorithm;

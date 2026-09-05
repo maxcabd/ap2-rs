@@ -11,7 +11,8 @@ use crate::mandate_type::MandateType;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnverifiedCheckoutMandate {
     pub vct: MandateType,
-    pub checkout_jwt: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checkout_jwt: Option<String>,
     pub checkout_hash: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub iat: Option<i64>,
@@ -39,8 +40,8 @@ mod tests {
 
         assert_eq!(parsed.vct, MandateType::CheckoutV1);
         assert_eq!(
-            parsed.checkout_jwt,
-            "eyJhbGciOiJFUzI1NiJ9.example.signature"
+            parsed.checkout_jwt.as_deref(),
+            Some("eyJhbGciOiJFUzI1NiJ9.example.signature")
         );
         assert_eq!(parsed.iat, Some(1735689600));
         assert_eq!(parsed.exp, Some(1735693200));
@@ -82,12 +83,25 @@ mod tests {
 
     #[test]
     fn missing_required_field_fails_to_parse() {
+        // checkout_jwt is selectively disclosable and so is optional;
+        // checkout_hash is not disclosable and stays required.
+        let json = r#"{
+            "vct": "mandate.checkout.1",
+            "checkout_jwt": "eyJhbGciOiJFUzI1NiJ9.example.signature"
+        }"#;
+
+        let result: Result<UnverifiedCheckoutMandate, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn checkout_jwt_may_be_concealed() {
         let json = r#"{
             "vct": "mandate.checkout.1",
             "checkout_hash": "3f39d5c348e5b79d06e842c114e6cc571583bbf44e4b0ebfda1a01ec05745d43"
         }"#;
 
-        let result: Result<UnverifiedCheckoutMandate, _> = serde_json::from_str(json);
-        assert!(result.is_err());
+        let parsed: UnverifiedCheckoutMandate = serde_json::from_str(json).unwrap();
+        assert_eq!(parsed.checkout_jwt, None);
     }
 }

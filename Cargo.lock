@@ -104,6 +104,10 @@ version = "0.1.0"
 dependencies = [
  "ap2-core",
  "ap2-credentials",
+ "base64",
+ "jsonwebtoken",
+ "p256",
+ "rand_core",
  "serde",
  "serde_json",
  "thiserror",

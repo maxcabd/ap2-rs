@@ -7,6 +7,17 @@ use sd_jwt_payload::{
 use crate::error::CredentialError;
 use crate::jws::{verify_compact_jws, ALLOWED_ALGORITHMS};
 
+/// SHA-256 + base64url digest of `input`.
+///
+/// Exposed for AP2 hash-binding checks outside the SD-JWT disclosure
+/// mechanism itself (e.g. a Checkout Mandate's `checkout_hash` binding to
+/// its `checkout_jwt`), which use the same digest SD-JWT disclosures do.
+/// Centralizing it here keeps `sd-jwt-payload` an implementation detail of
+/// this crate rather than a dependency callers reach past us for.
+pub fn sha256_base64url(input: &str) -> String {
+    Sha256Hasher::new().encoded_digest(input)
+}
+
 #[derive(Debug, Clone)]
 pub struct VerifiedSdJwt {
     pub header: JsonObject,
