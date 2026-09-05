@@ -1,10 +1,11 @@
-use ap2_credentials::Jwk;
+use ap2_credentials::{sha256_base64url, Jwk};
 use clap::{Parser, Subcommand};
 use std::process::ExitCode;
 
 /// Exit codes are stable and documented: 0 valid, 1 verification failed,
 /// 2 malformed input / CLI usage, 3 unsupported protocol/version.
 const EXIT_VALID: u8 = 0;
+const EXIT_VERIFICATION_FAILED: u8 = 1;
 const EXIT_USAGE: u8 = 2;
 
 /// Clock skew tolerance for exp/iat checks.
@@ -96,6 +97,21 @@ enum Command {
         aud: String,
         #[arg(long)]
         nonce: String,
+    },
+    /// Verify an Open Checkout Mandate + Checkout Mandate delegation chain,
+    /// including checkout constraint policy (allowed merchants, line items).
+    VerifyCheckoutChain {
+        chain: String,
+        #[arg(long)]
+        root_key: String,
+        #[arg(long)]
+        aud: String,
+        #[arg(long)]
+        nonce: String,
+        /// Path to the merchant-signed Checkout JWT to check constraints
+        /// against and bind via checkout_hash.
+        #[arg(long)]
+        checkout: String,
     },
     /// Inspect a Checkout or Payment Receipt.
     InspectReceipt { receipt: String },
@@ -194,6 +210,65 @@ fn run_verify_chain(chain_path: &str, root_key_path: &str, aud: &str, nonce: &st
     }
 }
 
+fn run_verify_checkout_chain(
+    chain_path: &str,
+    root_key_path: &str,
+    aud: &str,
+    nonce: &str,
+    checkout_path: &str,
+) -> ExitCode {
+    let inputs = (|| -> Result<_, CliInputError> {
+        Ok((
+            read_trimmed(chain_path)?,
+            read_jwk(root_key_path)?,
+            read_trimmed(checkout_path)?,
+        ))
+    })();
+    let (chain, root_key, checkout_jwt) = match inputs {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(EXIT_USAGE);
+        }
+    };
+
+    let payloads = match ap2_verify::verify_chain(
+        &chain,
+        &root_key,
+        now_unix(),
+        DEFAULT_LEEWAY_SECONDS,
+        aud,
+        nonce,
+    ) {
+        Ok(payloads) => payloads,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(e.exit_code());
+        }
+    };
+
+    let mandate_chain = match ap2_verify::CheckoutMandateChain::parse(payloads) {
+        Ok(mandate_chain) => mandate_chain,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(e.exit_code());
+        }
+    };
+
+    let expected_checkout_hash = sha256_base64url(&checkout_jwt);
+    let violations = mandate_chain.verify(Some(&expected_checkout_hash), Some(&checkout_jwt));
+
+    if violations.is_empty() {
+        println!("checkout chain: OK");
+        ExitCode::from(EXIT_VALID)
+    } else {
+        for violation in &violations {
+            eprintln!("{violation}");
+        }
+        ExitCode::from(EXIT_VERIFICATION_FAILED)
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -216,6 +291,13 @@ fn main() -> ExitCode {
             aud,
             nonce,
         } => run_verify_chain(&chain, &root_key, &aud, &nonce),
+        Command::VerifyCheckoutChain {
+            chain,
+            root_key,
+            aud,
+            nonce,
+            checkout,
+        } => run_verify_checkout_chain(&chain, &root_key, &aud, &nonce, &checkout),
         _ => {
             eprintln!("not yet implemented");
             ExitCode::from(EXIT_USAGE)
