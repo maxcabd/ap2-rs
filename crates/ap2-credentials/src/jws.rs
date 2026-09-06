@@ -15,6 +15,18 @@ pub struct VerifiedJws<T> {
     pub claims: T,
 }
 
+/// Decodes just the header of a compact JWT, or of the first (issuer-signed)
+/// segment of an SD-JWT presentation, without verifying anything. Used to
+/// resolve which key to verify with (e.g. via `kid`/`x5c`) before any
+/// signature check happens.
+pub fn peek_header(token_or_presentation: &str) -> Result<Header, CredentialError> {
+    let segment = token_or_presentation
+        .split('~')
+        .next()
+        .unwrap_or(token_or_presentation);
+    decode_header(segment).map_err(|e| CredentialError::MalformedJws(e.to_string()))
+}
+
 /// Verifies a compact JWS (`header.payload.signature`) against `key`
 pub fn verify_compact_jws<T>(
     compact: &str,

@@ -48,6 +48,9 @@ pub enum VerifyError {
     #[error("receipt reference does not match the expected value")]
     ReceiptReferenceMismatch,
 
+    #[error("could not resolve a verifying key: {0}")]
+    UnresolvableRootKey(String),
+
     #[error("mandate expired at {exp}, now is {now} (leeway {leeway_seconds}s)")]
     Expired {
         exp: i64,
@@ -75,7 +78,8 @@ impl VerifyError {
             | VerifyError::MalformedClaims(_)
             | VerifyError::InvalidDelegatePayload
             | VerifyError::MalformedChainHop(_)
-            | VerifyError::MissingConfirmationKey => 2,
+            | VerifyError::MissingConfirmationKey
+            | VerifyError::UnresolvableRootKey(_) => 2,
 
             VerifyError::Credential(CredentialError::MalformedJws(_))
             | VerifyError::Credential(CredentialError::MalformedSdJwt(_))
@@ -84,6 +88,9 @@ impl VerifyError {
             VerifyError::Credential(CredentialError::SignatureInvalid(_))
             | VerifyError::Credential(CredentialError::DisallowedAlgorithm(_))
             | VerifyError::Credential(CredentialError::KeyBinding(_))
+            | VerifyError::Credential(CredentialError::CertificateChainInvalid)
+            | VerifyError::Credential(CredentialError::CertificateExpired { .. })
+            | VerifyError::Credential(CredentialError::UntrustedCertificateRoot)
             | VerifyError::HashMismatch
             | VerifyError::TransactionIdMismatch
             | VerifyError::ReceiptReferenceMismatch

@@ -20,4 +20,17 @@ pub enum CredentialError {
 
     #[error("key binding JWT verification failed: {0}")]
     KeyBinding(String),
+
+    #[error("certificate chain signature invalid")]
+    CertificateChainInvalid,
+
+    #[error("certificate not valid at {now}: window is {not_before}..={not_after}")]
+    CertificateExpired {
+        not_before: i64,
+        not_after: i64,
+        now: i64,
+    },
+
+    #[error("certificate chain does not lead to a trusted root")]
+    UntrustedCertificateRoot,
 }

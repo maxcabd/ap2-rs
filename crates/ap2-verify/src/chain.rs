@@ -1,8 +1,9 @@
-use ap2_credentials::{sha256_base64url, verify_sd_jwt, Jwk};
+use ap2_credentials::{peek_header, sha256_base64url, verify_sd_jwt, Jwk};
 use serde_json::Value;
 
 use crate::delegate::resolve_delegate_items;
 use crate::error::VerifyError;
+use crate::key_resolver::RootKeyResolver;
 
 const TYP_TERMINAL: &[&str] = &["kb+sd-jwt", "kb-sd-jwt"];
 const TYP_INTERMEDIATE: &[&str] = &["kb+sd-jwt+kb", "kb-sd-jwt+kb"];
@@ -21,9 +22,9 @@ type Claims = serde_json::Map<String, Value>;
 /// Returns one flattened list of effective payloads (root first). This
 /// function doesn't know about specific AP2 mandate types: callers
 /// deserialize/interpret each entry themselves.
-pub fn verify_chain(
+pub fn verify_chain<K: RootKeyResolver>(
     chain: &str,
-    root_key: &Jwk,
+    root_key: &K,
     now: i64,
     leeway_seconds: i64,
     expected_aud: &str,
@@ -31,7 +32,9 @@ pub fn verify_chain(
 ) -> Result<Vec<Claims>, VerifyError> {
     let hops: Vec<&str> = chain.split("~~").collect();
 
-    let root = verify_sd_jwt(&ensure_trailing_tilde(hops[0]), root_key)?;
+    let root_header = peek_header(hops[0])?;
+    let resolved_root_key = root_key.resolve_root_key(&root_header)?;
+    let root = verify_sd_jwt(&ensure_trailing_tilde(hops[0]), &resolved_root_key)?;
     let root_items = resolve_delegate_items(&root.claims)?;
     if root_items.len() > 1 {
         return Err(VerifyError::InvalidDelegatePayload);

@@ -18,3 +18,12 @@ thiserror.workspace = true
 # cmake/clang build dependency), SD-JWT via sd-jwt-payload.
 jsonwebtoken = { version = "11", default-features = false, features = ["rust_crypto"] }
 sd-jwt-payload = "0.5"
+
+# x5c certificate chain verification (RootKeyResolver, ap2-verify). Pure
+# Rust (RustCrypto), matching the ADR 0001 rationale above.
+x509-cert = { version = "0.3", default-features = false, features = ["std"] }
+der = "0.8"
+spki = "0.8"
+p256 = { version = "0.13", features = ["ecdsa"] }
+ecdsa = { version = "0.16", features = ["der"] }
+base64 = "0.22"
